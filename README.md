@@ -22,13 +22,13 @@ _NOTE: Markdown parse mode is deprecated and no longer up-to-date so it doesn't 
 ## Example usage
 ```
 $entity_decoder = new EntityDecoder('HTML');
-$decoded_text = $entity_decoder->decode($message);
+$decoded_text = $entity_decoder->decode($message['text'], $message['entities']);
 ```
 _See demo folder for full example_
 
 Usage:
 ```
-require 'src/EntityDecoder.php';
+include 'src/EntityDecoder.php';
 [...]
 $entity_decoder = new EntityDecoder('HTML');
 $decoded_text = $entity_decoder->decode($message['text'], $message['entities']);
