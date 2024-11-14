@@ -26,17 +26,12 @@ $decoded_text = $entity_decoder->decode($message);
 ```
 _See demo folder for full example_
 
-## Composer
-```
-composer require lucadevelop/telegram-entities-decoder
-```
 Usage:
 ```
-require 'vendor/autoload.php';
-use lucadevelop\TelegramEntitiesDecoder\EntityDecoder;
+require 'src/EntityDecoder.php';
 [...]
 $entity_decoder = new EntityDecoder('HTML');
-$decoded_text = $entity_decoder->decode($message);
+$decoded_text = $entity_decoder->decode($message['text'], $message['entities']);
 ```
 
 ## Credits
