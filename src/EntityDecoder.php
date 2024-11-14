@@ -15,8 +15,6 @@
  * @see https://github.com/LucaDevelop/telegram-entities-decoder
  */
 
-namespace lucadevelop\TelegramEntitiesDecoder;
-
 class EntityDecoder
 {
     private $entitiesToParse = ['bold', 'italic', 'code', 'pre', 'text_mention', 'text_link', 'strikethrough', 'underline', 'spoiler', 'blockquote', 'custom_emoji'];
@@ -46,37 +44,25 @@ class EntityDecoder
      * @param object $message       message object to reconstruct Entities from (json decoded without assoc).
      * @return string
      */
-    public function decode($message): string
+    public function decode(string $text, array $entities): string
     {
-        if (!is_object($message))
-        {
-            throw new \Exception('message must be an object');
-        }
-        //Get available entities (for text or for attachment like photo, document, etc.)
-        if (!empty($message->entities))
-        {
-            $this->entities = $message->entities;
-        }
-        if (!empty($message->caption_entities))
-        {
-            $this->entities = $message->caption_entities;
-        }
+
+        $this->entities = $entities;
+
         //Get internal encoding
         $prevencoding = mb_internal_encoding();
         //Set encoding to UTF-8
         mb_internal_encoding('UTF-8');
-        //Get available text (text message or caption for attachment)
-        $textToDecode = (!empty($message->text) ? $message->text : (!empty($message->caption) ? $message->caption : ""));
-        //if the message has no entities or no text return the original text
-        if (empty($this->entities) || $textToDecode == "") {
+
+        if (empty($this->entities) || $text == "") {
             if ($prevencoding)
             {
                 mb_internal_encoding($prevencoding);
             }
-            return $textToDecode;
+            return $text;
         }
         //split text in char array with UTF-16 code units length
-        $arrayText = $this->splitCharAndLength($textToDecode);
+        $arrayText = $this->splitCharAndLength($text);
         $finalText = "";
 
         $openedEntities = [];
@@ -139,141 +125,22 @@ class EntityDecoder
         return $finalText;
     }
 
-    /**
-     * Extract all entities in an array
-     *
-     * @param object $message       message object to reconstruct Entities from (json decoded without assoc).
-     * @return array
-     */
-    public function extractAllEntities($message): array
-    {
-        $entitiesArray = [];
-        if (!is_object($message))
-        {
-            throw new \Exception('message must be an object');
-        }
-        //Get available entities (for text or for attachment like photo, document, etc.)
-        if (!empty($message->entities))
-        {
-            $this->entities = $message->entities;
-        }
-        if (!empty($message->caption_entities))
-        {
-            $this->entities = $message->caption_entities;
-        }
-        //Get internal encoding
-        $prevencoding = mb_internal_encoding();
-        //Set encoding to UTF-8
-        mb_internal_encoding('UTF-8');
-        //Get available text (text message or caption for attachment)
-        $textToDecode = (!empty($message->text) ? $message->text : (!empty($message->caption) ? $message->caption : ""));
-        //if the message has no entities or no text return the empty array
-        if (empty($this->entities) || $textToDecode == "") {
-            if ($prevencoding)
-            {
-                mb_internal_encoding($prevencoding);
-            }
-            return $entitiesArray;
-        }
-        $arrayText = $this->splitCharAndLength($textToDecode);
-        $entitytext = "";
-
-        $openedEntities = [];
-        $currenPosition = 0;
-        //Cycle characters one by one to calculate begins and ends of entities and escape special chars
-        for ($i = 0, $c = count($arrayText); $i < $c; $i++) {
-            $offsetAndLength = $currenPosition + $arrayText[$i]['length'];
-            $entityCheckStart = $this->checkForEntityStart($currenPosition);
-            $entityCheckStop = $this->checkForEntityStop($offsetAndLength);
-            if ($entityCheckStart !== false)
-            {
-                foreach ($entityCheckStart as $stEntity)
-                {
-                    $startChar = $this->getEntityStartString($stEntity);
-                    $openedEntities[] = $stEntity;
-                    $entitytext .= $startChar;
-                }
-                $entitytext .= $this->escapeSpecialChars($arrayText[$i]['char'], true, $openedEntities);
-            }
-            if ($entityCheckStop !== false)
-            {
-                if ($entityCheckStart === false)
-                {
-                    $entitytext .= $this->escapeSpecialChars($arrayText[$i]['char'], true, $openedEntities);
-                }
-                if ($this->style == 'MarkdownV2' && $this->checkMarkdownV2AmbiguousEntities($entityCheckStop))
-                {
-                    $stopChar = "_\r__";
-                    $entitytext .= $stopChar;
-                    array_pop($openedEntities);
-                    array_pop($openedEntities);
-                    if(empty($openedEntities))
-                    {
-                        $entitiesArray[] = $entitytext;
-                        $entitytext = "";
-                    }
-                }
-                foreach ($entityCheckStop as $stEntity)
-                {
-                    $stopChar = $this->getEntityStopString($stEntity);
-                    $entitytext .= $stopChar;
-                    array_pop($openedEntities);
-                    if(empty($openedEntities))
-                    {
-                        $entitiesArray[] = $entitytext;
-                        $entitytext = "";
-                    }
-                }
-            }
-            if ($entityCheckStart === false && $entityCheckStop === false)
-            {
-                $isEntityOpen = !empty($openedEntities);
-                if($isEntityOpen)
-                {
-                    $entitytext .= $this->escapeSpecialChars($arrayText[$i]['char'], $isEntityOpen, $openedEntities);
-                }
-            }
-            $currenPosition = $offsetAndLength;
-        }
-        if (!empty($openedEntities))
-        {
-            $openedEntities = array_reverse($openedEntities);
-            foreach ($openedEntities as $oe)
-            {
-                $entitytext .= $this->getEntityStopString($oe);
-                $entitiesArray[] = $entitytext;
-            }
-        }
-        if ($prevencoding)
-        {
-            mb_internal_encoding($prevencoding);
-        }
-        return $entitiesArray;
-    }
-
-    /**
-     * Split message text in chars array with lengthes
-     */
     protected function splitCharAndLength($string)
     {
-        //Split string in individual unicode points
         $str_split_unicode = preg_split('//u', $string, -1, PREG_SPLIT_NO_EMPTY);
         $new_string_split = [];
         $joiner = false;
         for ($i = 0, $c = count($str_split_unicode); $i < $c; $i++)
         {
-            //loop the array
             $codepoint = bin2hex(mb_convert_encoding($str_split_unicode[$i], 'UTF-16')); //Get the string rappresentation of the unicode char
             if ($codepoint == "fe0f" || $codepoint == "1f3fb" || $codepoint == "1f3fc" || $codepoint == "1f3fd" || $codepoint == "1f3fe" || $codepoint == "1f3ff")
             {
-                //Manage the modifiers
                 $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend the modifier to the previous char
             }
             else
             {
                 if ($codepoint == "200d")
                 {
-                    //Manage the Zero Width Joiner
                     $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend the ZWJ to the previous char
                     $joiner = true;
                 }
@@ -281,7 +148,6 @@ class EntityDecoder
                 {
                     if ($joiner)
                     {
-                        //If previous one was a ZWJ
                         $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend to the previous char
                         $joiner = false;
                     }
@@ -300,9 +166,6 @@ class EntityDecoder
         return $data;
     }
 
-    /**
-     * Apply Telegram escape rules for the choosen style
-     */
     protected function escapeSpecialChars($char, $isEntityOpen, $entities) {
         if ($this->style == 'Markdown')
         {
@@ -345,7 +208,7 @@ class EntityDecoder
         {
             $isBlockquoteOpen = false;
             foreach ($entities as $entity) {
-                if ($entity->type === 'blockquote') {
+                if ($entity['type'] === 'blockquote') {
                     $isBlockquoteOpen = true;
                     break;
                 }
@@ -365,15 +228,12 @@ class EntityDecoder
         }
     }
 
-    /**
-     * Get the begin string of the entity  for the choosen style
-     */
     protected function getEntityStartString($entity)
     {
         $startString = '';
         if ($this->style == 'Markdown')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -393,9 +253,9 @@ class EntityDecoder
                 case 'pre':
                 {
                     $startString = '```';
-                    if (isset($entity->language))
+                    if (isset($entity['language']))
                     {
-                        $startString .= $entity->language;
+                        $startString .= $entity['language'];
                     }
                     $startString .= "\n";
                     break;
@@ -410,7 +270,7 @@ class EntityDecoder
         }
         else if ($this->style == 'HTML')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -445,25 +305,25 @@ class EntityDecoder
                 case 'pre':
                 {
                     $startString = '<pre>';
-                    if (isset($entity->language))
+                    if (isset($entity['language']))
                     {
-                        $startString .= '<code class="language-'.$entity->language.'">';
+                        $startString .= '<code class="language-'.$entity['language'].'">';
                     }
                     break;
                 }
                 case 'text_mention':
                 {
-                    $startString = '<a href="tg://user?id='.$entity->user->id.'">';
+                    $startString = '<a href="tg://user?id='.$entity['user']['id'].'">';
                     break;
                 }
                 case 'text_link':
                 {
-                    $startString = '<a href="'.$entity->url.'">';
+                    $startString = '<a href="'.$entity['url'].'">';
                     break;
                 }
                 case 'custom_emoji':
                 {
-                    $startString = '<tg-emoji emoji-id="'.$entity->custom_emoji_id.'">';
+                    $startString = '<tg-emoji emoji-id="'.$entity['custom_emoji_id'].'">';
                     break;
                 }
                 case 'blockquote':
@@ -475,7 +335,7 @@ class EntityDecoder
         }
         else if ($this->style == 'MarkdownV2')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -500,9 +360,9 @@ class EntityDecoder
                 case 'pre':
                 {
                     $startString = '```';
-                    if (isset($entity->language))
+                    if (isset($entity['language']))
                     {
-                        $startString .= $entity->language;
+                        $startString .= $entity['language'];
                     }
                     $startString .= "\n";
                     break;
@@ -538,17 +398,14 @@ class EntityDecoder
         return $startString;
     }
 
-    /**
-     * Check if there are entities that start at the given position and return them
-     */
     protected function checkForEntityStart($pos)
     {
         $entities = [];
         foreach ($this->entities as $entity)
         {
-            if ($entity->offset == $pos)
+            if ($entity['offset'] == $pos)
             {
-                if (in_array($entity->type, $this->entitiesToParse))
+                if (in_array($entity['type'], $this->entitiesToParse))
                 {
                     $entities[] = $entity;
                 }
@@ -561,15 +418,12 @@ class EntityDecoder
         }
     }
 
-    /**
-     * Get the end string of the entity  for the choosen style
-     */
     protected function getEntityStopString($entity)
     {
         $stopString = '';
         if ($this->style == 'Markdown')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -593,19 +447,19 @@ class EntityDecoder
                 }
                 case 'text_mention':
                 {
-                    $stopString = '](tg://user?id='.$entity->user->id.')';
+                    $stopString = '](tg://user?id='.$entity['user']['id'].')';
                     break;
                 }
                 case 'text_link':
                 {
-                    $stopString = ']('.$entity->url.')';
+                    $stopString = ']('.$entity['url'].')';
                     break;
                 }
             }
         }
         else if ($this->style == 'HTML')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -639,7 +493,7 @@ class EntityDecoder
                 }
                 case 'pre':
                 {
-                    if (isset($entity->language))
+                    if (isset($entity['language']))
                     {
                         $stopString = '</code>';
                     }
@@ -666,7 +520,7 @@ class EntityDecoder
         }
         else if ($this->style == 'MarkdownV2')
         {
-            switch ($entity->type)
+            switch ($entity['type'])
             {
                 case 'bold':
                 {
@@ -705,17 +559,17 @@ class EntityDecoder
                 }
                 case 'text_mention':
                 {
-                    $stopString = '](tg://user?id='.$entity->user->id.')';
+                    $stopString = '](tg://user?id='.$entity['user']['id'].')';
                     break;
                 }
                 case 'text_link':
                 {
-                    $stopString = ']('.$entity->url.')';
+                    $stopString = ']('.$entity['url'].')';
                     break;
                 }
                 case 'custom_emoji':
                 {
-                    $stopString = '](tg://emoji?id='.$entity->custom_emoji_id.')';
+                    $stopString = '](tg://emoji?id='.$entity['custom_emoji_id'].')';
                     break;
                 }
             }
@@ -723,17 +577,14 @@ class EntityDecoder
         return $stopString;
     }
 
-    /**
-     * Check if there are entities that end at the given position and return them (reversed because they are nested)
-     */
     protected function checkForEntityStop($pos)
     {
         $entities = [];
         foreach ($this->entities as $entity)
         {
-            if ($entity->offset + $entity->length == $pos)
+            if ($entity['offset'] + $entity['length'] == $pos)
             {
-                if (in_array($entity->type, $this->entitiesToParse))
+                if (in_array($entity['type'], $this->entitiesToParse))
                 {
                     $entities[] = $entity;
                 }
@@ -746,9 +597,6 @@ class EntityDecoder
         }
     }
 
-    /**
-     * Check for ambiguous entities in MarkdownV2 style (see Telegram docs)
-     */
     protected function checkMarkdownV2AmbiguousEntities(&$entitiesToCheck)
     {
         $result = false;
@@ -776,9 +624,6 @@ class EntityDecoder
         return $result;
     }
 
-    /**
-     * Count UTF-16 code units of the char passed
-     */
     protected function getUTF16CodePointsLength($char) {
         $chunks = str_split(bin2hex(mb_convert_encoding($char, 'UTF-16')), 4);
         return count($chunks);
