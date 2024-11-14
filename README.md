@@ -29,5 +29,6 @@ $decoded_text = $entity_decoder->decode($message['text'], $message['entities']);
 _See demo folder for full example_
 
 ## Credits
+- Original: https://github.com/LucaDevelop/telegram-entities-decoder
 - Telegram docs: https://core.telegram.org/bots/api#formatting-options
 - Inspired By: https://github.com/php-telegram-bot/core/issues/544#issuecomment-564950430
