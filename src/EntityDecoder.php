@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This class decode style entities from Telegram bot messages (bold, italic, etc.) in text with inline entities that duplicate (when possible) the
  * exact style the message has originally when was sended to the bot.
@@ -21,19 +22,16 @@ class EntityDecoder
     private $entities = [];
     private $style;
 
-      /**
-       * @param string $style       Either 'HTML', 'Markdown' or 'MarkdownV2'.
-       *
-       * @throws InvalidArgumentException if the provided style name in invalid.
-       */
+    /**
+     * @param string $style       Either 'HTML', 'Markdown' or 'MarkdownV2'.
+     *
+     * @throws InvalidArgumentException if the provided style name in invalid.
+     */
     public function __construct(string $style = 'HTML')
     {
-        if (in_array($style, ["HTML", "MarkdownV2", "Markdown"]))
-        {
+        if (in_array($style, ["HTML", "MarkdownV2", "Markdown"])) {
             $this->style = $style;
-        }
-        else
-        {
+        } else {
             throw new \InvalidArgumentException("Wrong style name");
         }
     }
@@ -55,8 +53,7 @@ class EntityDecoder
         mb_internal_encoding('UTF-8');
 
         if (empty($this->entities) || $text == "") {
-            if ($prevencoding)
-            {
+            if ($prevencoding) {
                 mb_internal_encoding($prevencoding);
             }
             return $text;
@@ -72,53 +69,43 @@ class EntityDecoder
             $offsetAndLength = $currenPosition + $arrayText[$i]['length'];
             $entityCheckStart = $this->checkForEntityStart($currenPosition);
             $entityCheckStop = $this->checkForEntityStop($offsetAndLength);
-            if ($entityCheckStart !== false)
-            {
-                foreach ($entityCheckStart as $stEntity)
-                {
+            if ($entityCheckStart !== false) {
+                foreach ($entityCheckStart as $stEntity) {
                     $startChar = $this->getEntityStartString($stEntity);
                     $openedEntities[] = $stEntity;
                     $finalText .= $startChar;
                 }
                 $finalText .= $this->escapeSpecialChars($arrayText[$i]['char'], true, $openedEntities);
             }
-            if ($entityCheckStop !== false)
-            {
-                if ($entityCheckStart === false)
-                {
+            if ($entityCheckStop !== false) {
+                if ($entityCheckStart === false) {
                     $finalText .= $this->escapeSpecialChars($arrayText[$i]['char'], true, $openedEntities);
                 }
-                if ($this->style == 'MarkdownV2' && $this->checkMarkdownV2AmbiguousEntities($entityCheckStop))
-                {
+                if ($this->style == 'MarkdownV2' && $this->checkMarkdownV2AmbiguousEntities($entityCheckStop)) {
                     $stopChar = "_\r__";
                     $finalText .= $stopChar;
                     array_pop($openedEntities);
                     array_pop($openedEntities);
                 }
-                foreach ($entityCheckStop as $stEntity)
-                {
+                foreach ($entityCheckStop as $stEntity) {
                     $stopChar = $this->getEntityStopString($stEntity);
                     $finalText .= $stopChar;
                     array_pop($openedEntities);
                 }
             }
-            if ($entityCheckStart === false && $entityCheckStop === false)
-            {
+            if ($entityCheckStart === false && $entityCheckStop === false) {
                 $isEntityOpen = !empty($openedEntities);
                 $finalText .= $this->escapeSpecialChars($arrayText[$i]['char'], $isEntityOpen, $openedEntities);
             }
             $currenPosition = $offsetAndLength;
         }
-        if (!empty($openedEntities))
-        {
+        if (!empty($openedEntities)) {
             $openedEntities = array_reverse($openedEntities);
-            foreach ($openedEntities as $oe)
-            {
+            foreach ($openedEntities as $oe) {
                 $finalText .= $this->getEntityStopString($oe);
             }
         }
-        if ($prevencoding)
-        {
+        if ($prevencoding) {
             mb_internal_encoding($prevencoding);
         }
 
@@ -130,82 +117,55 @@ class EntityDecoder
         $str_split_unicode = preg_split('//u', $string, -1, PREG_SPLIT_NO_EMPTY);
         $new_string_split = [];
         $joiner = false;
-        for ($i = 0, $c = count($str_split_unicode); $i < $c; $i++)
-        {
+        for ($i = 0, $c = count($str_split_unicode); $i < $c; $i++) {
             $codepoint = bin2hex(mb_convert_encoding($str_split_unicode[$i], 'UTF-16')); //Get the string rappresentation of the unicode char
-            if ($codepoint == "fe0f" || $codepoint == "1f3fb" || $codepoint == "1f3fc" || $codepoint == "1f3fd" || $codepoint == "1f3fe" || $codepoint == "1f3ff")
-            {
+            if ($codepoint == "fe0f" || $codepoint == "1f3fb" || $codepoint == "1f3fc" || $codepoint == "1f3fd" || $codepoint == "1f3fe" || $codepoint == "1f3ff") {
                 $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend the modifier to the previous char
-            }
-            else
-            {
-                if ($codepoint == "200d")
-                {
+            } else {
+                if ($codepoint == "200d") {
                     $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend the ZWJ to the previous char
                     $joiner = true;
-                }
-                else
-                {
-                    if ($joiner)
-                    {
+                } else {
+                    if ($joiner) {
                         $new_string_split[count($new_string_split) - 1] .= $str_split_unicode[$i]; //Apppend to the previous char
                         $joiner = false;
-                    }
-                    else
-                    {
+                    } else {
                         $new_string_split[] = $str_split_unicode[$i]; //New char
                     }
                 }
             }
         }
         $data = [];
-        foreach ($new_string_split as $s)
-        {
-          $data[] = ["char" => $s, "length" => $this->getUTF16CodePointsLength($s)];
+        foreach ($new_string_split as $s) {
+            $data[] = ["char" => $s, "length" => $this->getUTF16CodePointsLength($s)];
         }
         return $data;
     }
 
-    protected function escapeSpecialChars($char, $isEntityOpen, $entities) {
-        if ($this->style == 'Markdown')
-        {
-            if ($isEntityOpen)
-            {
+    protected function escapeSpecialChars($char, $isEntityOpen, $entities)
+    {
+        if ($this->style === 'Markdown') {
+            if ($isEntityOpen) {
                 $entity = $entities[0];
-                if ($char == '*' || $char == '_')
-                {
-                    if ($char == $this->getEntityStartString($entity))
-                    {
-                        return $char."\\".$char.$char;
-                    }
-                    else
-                    {
+                if ($char == '*' || $char == '_') {
+                    if ($char == $this->getEntityStartString($entity)) {
+                        return $char . "\\" . $char . $char;
+                    } else {
                         return $char;
                     }
+                } else {
+                    return $char;
                 }
-                else
-                {
+            } else {
+                if ($char == '*' || $char == '_' || $char == '[' || $char == '`') {
+                    return "\\" . $char;
+                } else {
                     return $char;
                 }
             }
-            else
-            {
-                if ($char == '*' || $char == '_' || $char == '[' || $char == '`')
-                {
-                    return "\\".$char;
-                }
-                else
-                {
-                    return $char;
-                }
-            }
-        }
-        else if ($this->style == 'HTML')
-        {
+        } else if ($this->style === 'HTML') {
             return ($char == '<' ? '&lt;' : ($char == '>' ? '&gt;' : ($char == '&' ? '&amp;' : $char)));
-        }
-        else if ($this->style == 'MarkdownV2')
-        {
+        } else if ($this->style === 'MarkdownV2') {
             $isBlockquoteOpen = false;
             foreach ($entities as $entity) {
                 if ($entity['type'] === 'blockquote') {
@@ -213,17 +173,12 @@ class EntityDecoder
                     break;
                 }
             }
-            if($isBlockquoteOpen && $char == "\n")
-            {
-                return $char.'>';
+            if ($isBlockquoteOpen && $char == "\n") {
+                return $char . '>';
+            } else {
+                return (in_array($char, ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!', '\\']) ? '\\' . $char : $char);
             }
-            else
-            {
-                return (in_array($char, ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!', '\\']) ? '\\'.$char : $char);
-            }
-        }
-        else
-        {
+        } else {
             return $char;
         }
     }
@@ -231,165 +186,128 @@ class EntityDecoder
     protected function getEntityStartString($entity)
     {
         $startString = '';
-        if ($this->style == 'Markdown')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        if ($this->style === 'Markdown') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $startString = '*';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $startString = '_';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $startString = '`';
                     break;
                 }
-                case 'pre':
-                {
+                case 'pre': {
                     $startString = '```';
-                    if (isset($entity['language']))
-                    {
+                    if (isset($entity['language'])) {
                         $startString .= $entity['language'];
                     }
                     $startString .= "\n";
                     break;
                 }
                 case 'text_mention':
-                case 'text_link':
-                {
+                case 'text_link': {
                     $startString = '[';
                     break;
                 }
             }
-        }
-        else if ($this->style == 'HTML')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        } else if ($this->style === 'HTML') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $startString = '<b>';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $startString = '<i>';
                     break;
                 }
-                case 'underline':
-                {
+                case 'underline': {
                     $startString = '<u>';
                     break;
                 }
-                case 'strikethrough':
-                {
+                case 'strikethrough': {
                     $startString = '<s>';
                     break;
                 }
-                case 'spoiler':
-                {
+                case 'spoiler': {
                     $startString = '<span class="tg-spoiler">';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $startString = '<code>';
                     break;
                 }
-                case 'pre':
-                {
+                case 'pre': {
                     $startString = '<pre>';
-                    if (isset($entity['language']))
-                    {
-                        $startString .= '<code class="language-'.$entity['language'].'">';
+                    if (isset($entity['language'])) {
+                        $startString .= '<code class="language-' . $entity['language'] . '">';
                     }
                     break;
                 }
-                case 'text_mention':
-                {
-                    $startString = '<a href="tg://user?id='.$entity['user']['id'].'">';
+                case 'text_mention': {
+                    $startString = '<a href="tg://user?id=' . $entity['user']['id'] . '">';
                     break;
                 }
-                case 'text_link':
-                {
-                    $startString = '<a href="'.$entity['url'].'">';
+                case 'text_link': {
+                    $startString = '<a href="' . $entity['url'] . '">';
                     break;
                 }
-                case 'custom_emoji':
-                {
-                    $startString = '<tg-emoji emoji-id="'.$entity['custom_emoji_id'].'">';
+                case 'custom_emoji': {
+                    $startString = '<tg-emoji emoji-id="' . $entity['custom_emoji_id'] . '">';
                     break;
                 }
-                case 'blockquote':
-                {
+                case 'blockquote': {
                     $startString = '<blockquote>';
                     break;
                 }
             }
-        }
-        else if ($this->style == 'MarkdownV2')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        } else if ($this->style === 'MarkdownV2') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $startString = '*';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $startString = '_';
                     break;
                 }
-                case 'spoiler':
-                {
+                case 'spoiler': {
                     $startString = '||';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $startString = '`';
                     break;
                 }
-                case 'pre':
-                {
+                case 'pre': {
                     $startString = '```';
-                    if (isset($entity['language']))
-                    {
+                    if (isset($entity['language'])) {
                         $startString .= $entity['language'];
                     }
                     $startString .= "\n";
                     break;
                 }
-                case 'underline':
-                {
+                case 'underline': {
                     $startString .= '__';
                     break;
                 }
-                case 'strikethrough':
-                {
+                case 'strikethrough': {
                     $startString .= '~';
                     break;
                 }
                 case 'text_mention':
-                case 'text_link':
-                {
+                case 'text_link': {
                     $startString = '[';
                     break;
                 }
-                case 'custom_emoji':
-                {
+                case 'custom_emoji': {
                     $startString = '![';
                     break;
                 }
-                case 'blockquote':
-                {
+                case 'blockquote': {
                     $startString = '>';
                     break;
                 }
@@ -401,12 +319,9 @@ class EntityDecoder
     protected function checkForEntityStart($pos)
     {
         $entities = [];
-        foreach ($this->entities as $entity)
-        {
-            if ($entity['offset'] == $pos)
-            {
-                if (in_array($entity['type'], $this->entitiesToParse))
-                {
+        foreach ($this->entities as $entity) {
+            if ($entity['offset'] == $pos) {
+                if (in_array($entity['type'], $this->entitiesToParse)) {
                     $entities[] = $entity;
                 }
             }
@@ -421,155 +336,120 @@ class EntityDecoder
     protected function getEntityStopString($entity)
     {
         $stopString = '';
-        if ($this->style == 'Markdown')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        if ($this->style == 'Markdown') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $stopString = '*';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $stopString = '_';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $stopString = '`';
                     break;
                 }
-                case 'pre':
-                {
-                    $stopString = "\n".'```';
+                case 'pre': {
+                    $stopString = "\n" . '```';
                     break;
                 }
-                case 'text_mention':
-                {
-                    $stopString = '](tg://user?id='.$entity['user']['id'].')';
+                case 'text_mention': {
+                    $stopString = '](tg://user?id=' . $entity['user']['id'] . ')';
                     break;
                 }
-                case 'text_link':
-                {
-                    $stopString = ']('.$entity['url'].')';
+                case 'text_link': {
+                    $stopString = '](' . $entity['url'] . ')';
                     break;
                 }
             }
-        }
-        else if ($this->style == 'HTML')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        } else if ($this->style == 'HTML') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $stopString = '</b>';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $stopString = '</i>';
                     break;
                 }
-                case 'underline':
-                {
+                case 'underline': {
                     $stopString = '</u>';
                     break;
                 }
-                case 'strikethrough':
-                {
+                case 'strikethrough': {
                     $stopString = '</s>';
                     break;
                 }
-                case 'spoiler':
-                {
+                case 'spoiler': {
                     $stopString = '</span>';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $stopString = '</code>';
                     break;
                 }
-                case 'pre':
-                {
-                    if (isset($entity['language']))
-                    {
+                case 'pre': {
+                    if (isset($entity['language'])) {
                         $stopString = '</code>';
                     }
                     $stopString .= '</pre>';
                     break;
                 }
                 case 'text_mention':
-                case 'text_link':
-                {
+                case 'text_link': {
                     $stopString = '</a>';
                     break;
                 }
-                case 'custom_emoji':
-                {
+                case 'custom_emoji': {
                     $stopString = '</tg-emoji>';
                     break;
                 }
-                case 'blockquote':
-                {
+                case 'blockquote': {
                     $stopString = '</blockquote>';
                     break;
                 }
             }
-        }
-        else if ($this->style == 'MarkdownV2')
-        {
-            switch ($entity['type'])
-            {
-                case 'bold':
-                {
+        } else if ($this->style == 'MarkdownV2') {
+            switch ($entity['type']) {
+                case 'bold': {
                     $stopString = '*';
                     break;
                 }
-                case 'italic':
-                {
+                case 'italic': {
                     $stopString = '_';
                     break;
                 }
-                case 'spoiler':
-                {
+                case 'spoiler': {
                     $stopString = '||';
                     break;
                 }
-                case 'code':
-                {
+                case 'code': {
                     $stopString = '`';
                     break;
                 }
-                case 'pre':
-                {
-                    $stopString = "\n".'```';
+                case 'pre': {
+                    $stopString = "\n" . '```';
                     break;
                 }
-                case 'underline':
-                {
+                case 'underline': {
                     $stopString = '__';
                     break;
                 }
-                case 'strikethrough':
-                {
+                case 'strikethrough': {
                     $stopString = '~';
                     break;
                 }
-                case 'text_mention':
-                {
-                    $stopString = '](tg://user?id='.$entity['user']['id'].')';
+                case 'text_mention': {
+                    $stopString = '](tg://user?id=' . $entity['user']['id'] . ')';
                     break;
                 }
-                case 'text_link':
-                {
-                    $stopString = ']('.$entity['url'].')';
+                case 'text_link': {
+                    $stopString = '](' . $entity['url'] . ')';
                     break;
                 }
-                case 'custom_emoji':
-                {
-                    $stopString = '](tg://emoji?id='.$entity['custom_emoji_id'].')';
+                case 'custom_emoji': {
+                    $stopString = '](tg://emoji?id=' . $entity['custom_emoji_id'] . ')';
                     break;
                 }
             }
@@ -580,12 +460,9 @@ class EntityDecoder
     protected function checkForEntityStop($pos)
     {
         $entities = [];
-        foreach ($this->entities as $entity)
-        {
-            if ($entity['offset'] + $entity['length'] == $pos)
-            {
-                if (in_array($entity['type'], $this->entitiesToParse))
-                {
+        foreach ($this->entities as $entity) {
+            if ($entity['offset'] + $entity['length'] == $pos) {
+                if (in_array($entity['type'], $this->entitiesToParse)) {
                     $entities[] = $entity;
                 }
             }
@@ -602,20 +479,15 @@ class EntityDecoder
         $result = false;
         $newEntities = [];
         $foundIndex = 0;
-        foreach ($entitiesToCheck as $ec)
-        {
-            if ($ec->type == 'italic' || $ec->type == 'underline')
-            {
+        foreach ($entitiesToCheck as $ec) {
+            if ($ec->type == 'italic' || $ec->type == 'underline') {
                 $foundIndex++;
             }
         }
-        if ($foundIndex == 2)
-        {
+        if ($foundIndex == 2) {
             $result = true;
-            foreach ($entitiesToCheck as $ec)
-            {
-                if ($ec->type != 'italic' && $ec->type != 'underline')
-                {
+            foreach ($entitiesToCheck as $ec) {
+                if ($ec->type != 'italic' && $ec->type != 'underline') {
                     $newEntities[] = $ec;
                 }
             }
@@ -624,7 +496,8 @@ class EntityDecoder
         return $result;
     }
 
-    protected function getUTF16CodePointsLength($char) {
+    protected function getUTF16CodePointsLength($char)
+    {
         $chunks = str_split(bin2hex(mb_convert_encoding($char, 'UTF-16')), 4);
         return count($chunks);
     }
