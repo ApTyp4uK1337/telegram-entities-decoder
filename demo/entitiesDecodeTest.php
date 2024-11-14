@@ -2,8 +2,6 @@
 
 include '../src/EntityDecoder.php';
 
-use lucadevelop\TelegramEntitiesDecoder\EntityDecoder;
-
 $telegramUpdateExample = '
 {
     "update_id": 123456789,
@@ -44,10 +42,10 @@ $telegramUpdateExample = '
     }
 }';
 
-$updateObj = json_decode($telegramUpdateExample);
+$updateObj = json_decode($telegramUpdateExample, true);
 
 $entity_decoder = new EntityDecoder('HTML');
-$decoded_text = $entity_decoder->decode($updateObj->message);
+$decoded_text = $entity_decoder->decode($telegramUpdateExample['message']['text'], $$telegramUpdateExample['message']['entities']);
 
 echo $decoded_text;
 ?>
