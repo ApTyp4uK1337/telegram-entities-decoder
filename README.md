@@ -31,6 +31,3 @@ _See demo folder for full example_
 ## Credits
 - Telegram docs: https://core.telegram.org/bots/api#formatting-options
 - Inspired By: https://github.com/php-telegram-bot/core/issues/544#issuecomment-564950430
-
-## Contacts
-![Telegram](https://telegram.org/favicon.ico) [@LucaDevelop](https://t.me/LucaDevelop)
