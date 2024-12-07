@@ -72,10 +72,10 @@ $telegramUpdateExample = '
     }
   }';
 
-$updateObj = json_decode($telegramUpdateExample, true);
+$update = json_decode($telegramUpdateExample, true);
 
 $entity_decoder = new EntityDecoder('HTML');
-$decoded_text = $entity_decoder->decode($telegramUpdateExample['message']['caption'], $$telegramUpdateExample['message']['caption_entities']);
+$decoded_text = $entity_decoder->decode($update['message']['caption'], $update['message']['caption_entities']);
 
 echo $decoded_text;
 ?>
